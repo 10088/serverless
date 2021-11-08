@@ -196,6 +196,31 @@ That allowed us to make the KMS configuration consistent with all other AWS reso
 
 `alexaSkill` events now require an `appId` ([learn more](../deprecations.md#support-for-alexaskill-event-without-appid-is-to-be-removed)). That change was required to implement a more stable deployment, as well as to deploy more restricted IAM permissions.
 
+### Lambda Hashing Algorithm
+
+By default, Lambda version hashes will now be generated using improved algorithm (fixed determinism issues). As it is a breaking change that requires more manual effort during migration, it is still possible (but not recommended) to keep using old algorithm by using the following configuration:
+
+```
+provider:
+  lambdaHashingVersion: 20200924
+```
+
+However, we highly encourage an upgrade to the new algorithm. Safe upgrade requires change in configuration or code of all your functions. You can do it safely following the guide below:
+
+**NOTE**: Please keep in mind that these changes require two deployments with manual configuration adjustment between them. It also creates two additional versions and temporarily overrides descriptions of your functions. Migration will need to be done separately for each of your environments/stages.
+
+1. Run `sls deploy` with additional `--enforce-hash-update` flag to override description for all your functions and force creation of new versions.
+2. Set `provider.lambdaHashingVersion` to `20201221` in your configuration.
+3. Run `sls deploy`, this time without additional `--enforce-hash-update` flag.
+
+Now your whole service will be fully migrated to new Lambda Hashing Algorithm.
+
+If you do not want to temporarily override descriptions of your functions or would like to avoid creating unnecessary versions of your functions, you might want to use one of the following approaches:
+
+- Ensure that code for all your functions will change during deployment, set `provider.lambdaHashingVersion: 20201221` in your configuration, and run `sls deploy`. Due to the fact that all functions have code changed, all your functions will be migrated to new hashing algorithm. Please note that the change can be caused by e.g. upgrading a dependency used by all your functions so you can pair it with regular chores.
+- Add a dummy file that will be included in deployment artifacts for all your functions, set `provider.lambdaHashingVersion: 20201221` in your configuration, and run `sls deploy`. Due to the fact that all functions have code changed, all your functions will be migrated to new hashing algorithm.
+- If it is safe in your case (e.g. it's only development sandbox), you can also tear down the whole service by `sls remove`, set `provider.lambdaHashingVersion: 20201221` in your configuration, and run `sls deploy`. Newly recreated environment will be using new hashing algorithm.
+
 ### Low-level changes
 
 Internal changes that may impact plugins or advanced use cases:
